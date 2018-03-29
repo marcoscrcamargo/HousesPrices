@@ -5,6 +5,10 @@ import matplotlib
 import matplotlib.pyplot as plt
 from scipy.stats import skew
 
+from sklearn.linear_model import Ridge, Lasso
+from sklearn.model_selection import cross_val_score
+
+
 # Caminho dos dados.
 DTRAIN_PATH = "data/train.csv"
 DTEST_PATH = "data/test.csv"
@@ -51,22 +55,31 @@ x_train = all_data[:train.shape[0]]
 x_test = all_data[train.shape[0]:]
 y = train.SalePrice
 
-from sklearn.linear_model import Ridge
-from sklearn.model_selection import cross_val_score
-
 def rmse_cv(model):
 	return np.sqrt(-cross_val_score(model, x_train, y,
 		scoring="neg_mean_squared_error", cv=10))
 
-alphas = np.arange(9, 11, 0.1)
-# alphas = [0.05, 0.1, 0.3, 1, 3, 5, 10, 15, 30, 50, 75]
+# Linear Ridge Model
+alphas = [1, 3, 5, 10, 15, 30, 50, 75]
 cv_ridge = [rmse_cv(Ridge(alpha=alpha)).mean()
 			for alpha in alphas]
-
 cv_ridge = pd.Series(cv_ridge, index = alphas)
 # cv_ridge.plot(title = "Validation")
 # plt.xlabel("alpha")
 # plt.ylabel("rmse")
 # plt.show()
 
-print(cv_ridge.idxmin(), cv_ridge.min())
+# Linear Lasso Model
+alphas = [1, 0.1, 0.001, 0.0005]
+cv_lasso = [rmse_cv(Lasso(alpha=alpha)).mean()
+			for alpha in alphas]
+cv_lasso = pd.Series(cv_lasso, index = alphas)
+
+print(cv_ridge.idxmin(), cv_ridge.min(), sep='\t')
+print(cv_lasso.idxmin(), cv_lasso.min(), sep='\t')
+
+colors = [ 'g', 'yellow', 'k', 'maroon']
+x = np.arange(2)
+data = [cv_ridge.min(), cv_lasso.min()]
+plt.bar(x, data, color=colors)
+plt.show()
