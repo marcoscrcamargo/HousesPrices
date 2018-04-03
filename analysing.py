@@ -7,6 +7,10 @@ from scipy.stats import skew
 
 from sklearn.linear_model import Ridge, Lasso
 from sklearn.model_selection import cross_val_score
+import xgboost as xgb
+
+# Parametro K do K-fold
+K_FOLDS = 10
 
 
 # Caminho dos dados.
@@ -15,7 +19,7 @@ DTEST_PATH = "data/test.csv"
 
 # Lendo dados.
 train = pd.read_csv(DTRAIN_PATH)
-test = pd.read_csv(DTRAIN_PATH)
+test = pd.read_csv(DTEST_PATH)
 
 # Concatenando dados de treino e teste para facilitar as operações
 # de pré processamento.
@@ -57,8 +61,9 @@ y = train.SalePrice
 
 def rmse_cv(model):
 	return np.sqrt(-cross_val_score(model, x_train, y,
-		scoring="neg_mean_squared_error", cv=10))
+		scoring="neg_mean_squared_error", cv=K_FOLDS))
 
+# K-Fold Cross Validation to evaluete models.
 # Linear Ridge Model
 alphas = [1, 3, 5, 10, 15, 30, 50, 75]
 cv_ridge = [rmse_cv(Ridge(alpha=alpha)).mean()
@@ -75,11 +80,24 @@ cv_lasso = [rmse_cv(Lasso(alpha=alpha)).mean()
 			for alpha in alphas]
 cv_lasso = pd.Series(cv_lasso, index = alphas)
 
+# xgboost Model
+dtrain = xgb.DMatrix(x_train, label = y)
+dtest = xgb.DMatrix(x_test)
+
+params = {"max_depth":2, "eta":0.1}
+cv_xgb = xgb.cv(params, dtrain,  num_boost_round=500, nfold=K_FOLDS, early_stopping_rounds=100)
+# model.loc[30:,["test-rmse-mean", "train-rmse-mean"]].plot()
+
+
+# Comparando os resultados do kfold
+print(cv_xgb['test-rmse-mean'].idxmin(), cv_xgb['test-rmse-mean'].min(), sep='\t')
 print(cv_ridge.idxmin(), cv_ridge.min(), sep='\t')
 print(cv_lasso.idxmin(), cv_lasso.min(), sep='\t')
 
 colors = [ 'g', 'yellow', 'k', 'maroon']
-x = np.arange(2)
-data = [cv_ridge.min(), cv_lasso.min()]
+data = [cv_ridge.min(), cv_lasso.min(), cv_xgb['test-rmse-mean'].min()]
+x = ['Ridge', 'Lasso', 'XGBoost']
 plt.bar(x, data, color=colors)
 plt.show()
+
+
