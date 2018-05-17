@@ -12,7 +12,6 @@ import xgboost as xgb
 # Parametro K do K-fold
 K_FOLDS = 10
 
-
 # Caminho dos dados.
 DTRAIN_PATH = "data/train.csv"
 DTEST_PATH = "data/test.csv"
@@ -64,7 +63,7 @@ def rmse_cv(model):
 		scoring="neg_mean_squared_error", cv=K_FOLDS))
 
 # K-Fold Cross Validation to evaluete models.
-# Linear Ridge Model
+# Linear Ridge
 alphas = [1, 3, 5, 10, 15, 30, 50, 75]
 cv_ridge = [rmse_cv(Ridge(alpha=alpha)).mean()
 			for alpha in alphas]
@@ -74,16 +73,18 @@ cv_ridge = pd.Series(cv_ridge, index = alphas)
 # plt.ylabel("rmse")
 # plt.show()
 
-# Linear Lasso Model
+# Linear Lasso
 alphas = [1, 0.1, 0.001, 0.0005]
 cv_lasso = [rmse_cv(Lasso(alpha=alpha)).mean()
 			for alpha in alphas]
 cv_lasso = pd.Series(cv_lasso, index = alphas)
 
-# xgboost Model
+# XGBoost Model
 dtrain = xgb.DMatrix(x_train, label = y)
-dtest = xgb.DMatrix(x_test)
+#dtest = xgb.DMatrix(x_test)
 
+# testar outros parametros pra ver se a acuracia melhora
+# (melhores resultados)
 params = {"max_depth":2, "eta":0.1}
 cv_xgb = xgb.cv(params, dtrain,  num_boost_round=500, nfold=K_FOLDS, early_stopping_rounds=100)
 # model.loc[30:,["test-rmse-mean", "train-rmse-mean"]].plot()
@@ -94,10 +95,39 @@ print(cv_xgb['test-rmse-mean'].idxmin(), cv_xgb['test-rmse-mean'].min(), sep='\t
 print(cv_ridge.idxmin(), cv_ridge.min(), sep='\t')
 print(cv_lasso.idxmin(), cv_lasso.min(), sep='\t')
 
-colors = [ 'g', 'yellow', 'k', 'maroon']
-data = [cv_ridge.min(), cv_lasso.min(), cv_xgb['test-rmse-mean'].min()]
-x = ['Ridge', 'Lasso', 'XGBoost']
-plt.bar(x, data, color=colors)
-plt.show()
 
+# Imprimindo gráfico com os melhores resultados.
+# data = np.array([cv_ridge.min(), cv_lasso.min(), cv_xgb['test-rmse-mean'].min()])
+# indices = ['Ridge', 'Lasso', 'XGBoost']
+# plt.bar(indices, 1-data, width= 0.2)
+# plt.show()
+
+
+# Criando modelos para a geração do resultado
+# Modelo Lasso
+	# alpha = melhor resultado obtido acima
+model_lasso = Lasso(alpha=0.0005).fit(x_train, y)
+
+# Modelo XBG
+model_xgb = xgb.XGBRegressor(n_estimators=360, max_depth=2, learning_rate=0.1)
+model_xgb.fit(x_train, y)
+
+# Modelo Ridge
+model_ridge = Ridge(alpha=10).fit(x_train, y)
+
+# Realizando as predições
+xgb_preds = np.expm1(model_xgb.predict(x_test))
+lasso_preds = np.expm1(model_lasso.predict(x_test))
+ridge_preds = np.expm1(model_ridge.predict(x_test))
+
+# Visualização dos resultados.
+predictions = pd.DataFrame({"xgb":xgb_preds, "lasso":lasso_preds, "ridge":ridge_preds})
+predictions.plot(x = "xgb", y = "lasso", kind = "scatter")
+
+# Combinando resultados
+preds = 0.7*lasso_preds + 0.3*xgb_preds
+
+# Exportando CSV para submissão.
+solution = pd.DataFrame({"id":test.Id, "SalePrice":preds})
+solution.to_csv("ridge_sol.csv", index = False)
 
