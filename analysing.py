@@ -9,6 +9,8 @@ from sklearn.linear_model import Ridge, Lasso
 from sklearn.model_selection import cross_val_score
 import xgboost as xgb
 
+from sklearn.model_selection import GridSearchCV
+
 # Parametro K do K-fold
 K_FOLDS = 10
 
@@ -20,6 +22,8 @@ DTEST_PATH = "data/test.csv"
 train = pd.read_csv(DTRAIN_PATH)
 test = pd.read_csv(DTEST_PATH)
 
+
+##### PRE PROCESSAMENTO #####
 # Concatenando dados de treino e teste para facilitar as operações
 # de pré processamento.
 all_data = pd.concat((train.loc[:,'MSSubClass':'SaleCondition'],
@@ -58,6 +62,15 @@ x_train = all_data[:train.shape[0]]
 x_test = all_data[train.shape[0]:]
 y = train.SalePrice
 
+
+
+
+
+
+
+
+# Testando os algoritmos de regressão.
+
 def rmse_cv(model):
 	return np.sqrt(-cross_val_score(model, x_train, y,
 		scoring="neg_mean_squared_error", cv=K_FOLDS))
@@ -85,10 +98,19 @@ dtrain = xgb.DMatrix(x_train, label = y)
 
 # testar outros parametros pra ver se a acuracia melhora
 # (melhores resultados)
+# testando somente com 1 valor de param
 params = {"max_depth":2, "eta":0.1}
 cv_xgb = xgb.cv(params, dtrain,  num_boost_round=500, nfold=K_FOLDS, early_stopping_rounds=100)
+print(cv_xgb['test-rmse-mean'].idxmin(), cv_xgb['test-rmse-mean'].min(), sep='\t')
+# testando para varios valores de param
+# params = [{"max_depth":2, "eta":0.1}]
+# cv_xgb = [xgb.cv(param, dtrain,  num_boost_round=500, nfold=K_FOLDS, early_stopping_rounds=100) for param in params]
 # model.loc[30:,["test-rmse-mean", "train-rmse-mean"]].plot()
 
+# p = {"hidden_layer_sizes":((10), (100), (200), (100,100), (200, 200), (10,10,10)), "activation": ("logistic", "tanh", "identity", "relu"), "solver":("lbfgs", "adam") }
+# clf = GridSearchCV(estimator=MLPRegressor(), param_grid=p).fit(x_train, y)
+# clf.best_params_
+# clf.best_score
 
 # Comparando os resultados do kfold
 print(cv_xgb['test-rmse-mean'].idxmin(), cv_xgb['test-rmse-mean'].min(), sep='\t')
@@ -99,8 +121,11 @@ print(cv_lasso.idxmin(), cv_lasso.min(), sep='\t')
 # Imprimindo gráfico com os melhores resultados.
 # data = np.array([cv_ridge.min(), cv_lasso.min(), cv_xgb['test-rmse-mean'].min()])
 # indices = ['Ridge', 'Lasso', 'XGBoost']
-# plt.bar(indices, 1-data, width= 0.2)
+# plt.bar(indices, data, width= 0.2)
 # plt.show()
+
+
+
 
 
 # Criando modelos para a geração do resultado
@@ -109,8 +134,7 @@ print(cv_lasso.idxmin(), cv_lasso.min(), sep='\t')
 model_lasso = Lasso(alpha=0.0005).fit(x_train, y)
 
 # Modelo XBG
-model_xgb = xgb.XGBRegressor(n_estimators=360, max_depth=2, learning_rate=0.1)
-model_xgb.fit(x_train, y)
+model_xgb = xgb.XGBRegressor(n_estimators=360, max_depth=2, learning_rate=0.1).fit(x_train, y)
 
 # Modelo Ridge
 model_ridge = Ridge(alpha=10).fit(x_train, y)
@@ -120,9 +144,12 @@ xgb_preds = np.expm1(model_xgb.predict(x_test))
 lasso_preds = np.expm1(model_lasso.predict(x_test))
 ridge_preds = np.expm1(model_ridge.predict(x_test))
 
+
+print(lasso_preds.shape)
+
 # Visualização dos resultados.
-predictions = pd.DataFrame({"xgb":xgb_preds, "lasso":lasso_preds, "ridge":ridge_preds})
-predictions.plot(x = "xgb", y = "lasso", kind = "scatter")
+# predictions = pd.DataFrame({"xgb":xgb_preds, "lasso":lasso_preds})
+# predictions.plot(x = "xgb", y = "lasso", kind = "scatter")
 
 # Combinando resultados
 preds = 0.7*lasso_preds + 0.3*xgb_preds
