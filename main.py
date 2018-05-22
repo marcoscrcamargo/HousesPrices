@@ -12,12 +12,13 @@ import numpy as np
 from scipy.stats import skew
 
 from sklearn.linear_model import Ridge, Lasso
+from sklearn.neural_network import MLPRegressor
 from xgboost import XGBRegressor
 from sklearn.model_selection import cross_val_score
 
 
 from sklearn.model_selection import GridSearchCV
-
+from sklearn.model_selection import StratifiedKFold
 
 # Caminho dos dados.
 DTRAIN_PATH = "data/train.csv"
@@ -72,31 +73,53 @@ def generating_csv(models, weights, x_test, ids):
 
 
 def grid_search(model, params, train_x, train_y):
-	clf = GridSearchCV(estimator=model, param_grid=params).fit(train_x, train_y)
-	return (clf.best_params_, clf.best_score_)
+	# kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=7)
+	# gridsearch = GridSearchCV(model, param_grid=params, scoring="neg_log_loss", n_jobs=-1, cv=kfold)
+
+	gridsearch = GridSearchCV(model, param_grid=params, n_jobs=-1)
+	gridresult = gridsearch.fit(train_x, train_y)
+
+	return gridresult
+
+def print_grid_result(name, grid_result):
+	print(name + ":")
+	# sumarize results
+	print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+	means = grid_result.cv_results_['mean_test_score']
+	stds = grid_result.cv_results_['std_test_score']
+	params = grid_result.cv_results_['params']
+	for mean, stdev, param in zip(means, stds, params):
+		print("%f (%f) with: %r" % (mean, stdev, param))
+	print("\n")
+
 
 def grid_search_lasso(train_x, train_y):
 	params = {'alpha':(1, 0.1, 0.001, 0.0005)}
-	best_params = grid_search(Lasso(), params, train_x, train_y)
-	print("LASSO:")
-	print(best_params)
-	return best_params
+
+	grid_result = grid_search(Lasso(), params, train_x, train_y)
+	print_grid_result("Lasso", grid_result)
 
 def grid_search_ridge(train_x, train_y):
 	params = {'alpha':(1, 3, 5, 10, 15, 30, 50, 75)}
-	best_params = grid_search(Ridge(), params, train_x, train_y)
-	print("RIDGE:")
-	print(best_params)
-	return best_params
 
-def grid_search_xgb():
-	pass
+	grid_result = grid_search(Ridge(), params, train_x, train_y)
+	print_grid_result("Ridge", grid_result)
 
-def main():
-	train_data = reading_data(DTRAIN_PATH)
-	test_data = reading_data(DTEST_PATH)
-	train_x, train_y, test_x = pre_processing_data(train_data, test_data)
+def grid_search_xgb(train_x, train_y):
+	# params = {"max_depth":(2, 3, 4), "eta":(0.0001, 0.001, 0.01, 0.1, 0.2, 0.3), "n_estimators":(100, 200, 300, 400, 500)}
+	params = {"max_depth":(2,), "learning_rate":(0.1,), "n_estimators":(300,)}
 
+	grid_result = grid_search(XGBRegressor(), params, train_x, train_y)
+	print_grid_result("XGBRegressor", grid_result)
+
+
+def grid_search_mlp(train_x, train_y):
+	# params = {"hidden_layer_sizes":((10), (100), (200), (100,100), (200, 200), (10,10,10)), "activation": ("logistic", "tanh", "identity", "relu"), "solver":("lbfgs", "adam"), "max_iter": (1000,) }
+	params = {"hidden_layer_sizes":((200, 200),), "activation": ("logistic",), "solver":("lbfgs",), "max_iter": (1000,) }
+	grid_result = grid_search(MLPRegressor(), params, train_x, train_y)
+	print_grid_result("MLPRegressor", grid_result)
+
+def get_results(train_x, train_y, test_x, test_data):
 	# Criando modelos para a geração do resultado
 	# Modelo Lasso
 	model_lasso = Lasso(alpha=0.0005).fit(train_x, train_y)
@@ -109,6 +132,20 @@ def main():
 	weights = [0.7, 0.3]
 
 	generating_csv(models, weights, test_x, test_data.Id)
+
+def main():
+	train_data = reading_data(DTRAIN_PATH)
+	test_data = reading_data(DTEST_PATH)
+	train_x, train_y, test_x = pre_processing_data(train_data, test_data)
+
+	grid_search_ridge(train_x, train_y)
+	grid_search_lasso(train_x, train_y)
+	# grid_search_mlp(train_x, train_y)
+	# grid_search_xgb(train_x, train_y)
+
+	# get_results(train_x, train_y, test_x, test_data)
+
+
 
 if __name__ == '__main__':
 	main()
