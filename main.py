@@ -14,9 +14,8 @@ from scipy.stats import skew
 from sklearn.linear_model import Ridge, Lasso
 from sklearn.neural_network import MLPRegressor
 from xgboost import XGBRegressor
+
 from sklearn.model_selection import cross_val_score
-
-
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import StratifiedKFold
 
@@ -26,6 +25,10 @@ DTEST_PATH = "data/test.csv"
 
 def reading_data(path):
 	return pd.read_csv(path)
+
+def rmse_cv(model, x_train, y_train, k_folds=10):
+	return np.sqrt(-cross_val_score(model, x_train, y_train,
+		scoring="neg_mean_squared_error", cv=k_folds))
 
 def pre_processing_data(train_data, test_data):
 	# Concatenando dados de treino e teste para facilitar as operações
@@ -106,8 +109,8 @@ def grid_search_ridge(train_x, train_y):
 	print_grid_result("Ridge", grid_result)
 
 def grid_search_xgb(train_x, train_y):
-	# params = {"max_depth":(2, 3, 4), "eta":(0.0001, 0.001, 0.01, 0.1, 0.2, 0.3), "n_estimators":(100, 200, 300, 400, 500)}
-	params = {"max_depth":(2,), "learning_rate":(0.1,), "n_estimators":(300,)}
+	params = {"max_depth":(2, 3, 4), "learning_rate":(0.0001, 0.001, 0.01, 0.1, 0.2, 0.3), "n_estimators":(100, 200, 300, 400, 500)}
+	# params = {"max_depth":(2,), "learning_rate":(0.1,), "n_estimators":(300,)}
 
 	grid_result = grid_search(XGBRegressor(), params, train_x, train_y)
 	print_grid_result("XGBRegressor", grid_result)
@@ -122,8 +125,12 @@ def grid_search_mlp(train_x, train_y):
 def get_results(train_x, train_y, test_x, test_data):
 	# Criando modelos para a geração do resultado
 	# Modelo Lasso
+	print('Lasso(alpha=0.0005):')
+	print(rmse_cv(Lasso(alpha=0.0005), train_x, train_y).mean())
 	model_lasso = Lasso(alpha=0.0005).fit(train_x, train_y)
 	# Modelo XBG
+	print('XGBRegressor(n_estimators=360, max_depth=2, learning_rate=0.1):')
+	print(rmse_cv(XGBRegressor(n_estimators=360, max_depth=2, learning_rate=0.1), train_x, train_y).mean())
 	model_xgb = XGBRegressor(n_estimators=360, max_depth=2, learning_rate=0.1).fit(train_x, train_y)
 	# # Modelo Ridge
 	# model_ridge = Ridge(alpha=10).fit(train_x, train_y)
@@ -138,10 +145,10 @@ def main():
 	test_data = reading_data(DTEST_PATH)
 	train_x, train_y, test_x = pre_processing_data(train_data, test_data)
 
-	grid_search_ridge(train_x, train_y)
-	grid_search_lasso(train_x, train_y)
+	# grid_search_ridge(train_x, train_y)
+	# grid_search_lasso(train_x, train_y)
 	# grid_search_mlp(train_x, train_y)
-	# grid_search_xgb(train_x, train_y)
+	grid_search_xgb(train_x, train_y)
 
 	# get_results(train_x, train_y, test_x, test_data)
 
