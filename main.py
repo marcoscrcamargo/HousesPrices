@@ -30,11 +30,37 @@ def rmse_cv(model, x_train, y_train, k_folds=10):
 	return np.sqrt(-cross_val_score(model, x_train, y_train,
 		scoring="neg_mean_squared_error", cv=k_folds))
 
+# Removing columns that the number of nans values is greater than bound=0.3
+def remove_nan_columns(df, bound=0.3):
+	for column_name in df.columns:
+		column = df[column_name]
+		nan_percentage = column.isnull().sum()/column.size
+		if(nan_percentage > bound):
+			df = df.drop(columns=[column_name])
+	return df
+
+# Removing rows that the number of nans values is greater than bound=0.1 (more than 10 values null)
+def remove_nan_rows(df, bound=0.1):
+	row_size = df.shape[1]
+	for index, row in df.iterrows():
+		rownan_percentage = row.isnull().sum()/row_size
+		if (rownan_percentage >= bound ):
+			df = df.drop(index)
+	return df
+
+
 def pre_processing_data(train_data, test_data):
+	# Removendo as linhas com muitos dados faltantes do conjunto de treino.
+	train_data = remove_nan_rows(train_data)
+
 	# Concatenando dados de treino e teste para facilitar as operações
 	# de pré processamento.
 	all_data = pd.concat((train_data.loc[:,'MSSubClass':'SaleCondition'],
-                      test_data.loc[:,'MSSubClass':'SaleCondition']))
+						test_data.loc[:,'MSSubClass':'SaleCondition']))
+
+	# Removendo as colunas com muitos dados ausentes.
+	# all_data = remove_nan_columns(all_data)
+
 	# Aplicando Log nos preços de venda (valores em distribuição normal).
 	train_data["SalePrice"] = np.log1p(train_data["SalePrice"])
 
@@ -56,6 +82,7 @@ def pre_processing_data(train_data, test_data):
 
 	# Preenche os valores em branco com a média.
 	all_data = all_data.fillna(all_data.mean())
+	# all_data = all_data.fillna(all_data.median())
 
 	# Dados para treinamento e teste após pré processamento.
 	x_train = all_data[:train_data.shape[0]]
@@ -124,17 +151,17 @@ def grid_search_mlp(train_x, train_y):
 
 def get_results(train_x, train_y, test_x, test_data):
 	# Criando modelos para a geração do resultado
-	# Modelo Lasso
-	print('Lasso(alpha=0.0005):')
-	print(rmse_cv(Lasso(alpha=0.0005), train_x, train_y).mean())
-	model_lasso = Lasso(alpha=0.0005).fit(train_x, train_y)
-	# Modelo XBG
-	print('XGBRegressor(n_estimators=360, max_depth=2, learning_rate=0.1):')
-	print(rmse_cv(XGBRegressor(n_estimators=360, max_depth=2, learning_rate=0.1), train_x, train_y).mean())
-	model_xgb = XGBRegressor(n_estimators=360, max_depth=2, learning_rate=0.1).fit(train_x, train_y)
+	# # Modelo Lasso
+	# print('Lasso(alpha=0.0005):')
+	# print(rmse_cv(Lasso(alpha=0.0005), train_x, train_y).mean())
+	# # Modelo XBG
+	# print('XGBRegressor(n_estimators=360, max_depth=2, learning_rate=0.1):')
+	# print(rmse_cv(XGBRegressor(n_estimators=360, max_depth=2, learning_rate=0.1), train_x, train_y).mean())
 	# # Modelo Ridge
 	# model_ridge = Ridge(alpha=10).fit(train_x, train_y)
 
+	model_lasso = Lasso(alpha=0.0005).fit(train_x, train_y)
+	model_xgb = XGBRegressor(n_estimators=360, max_depth=2, learning_rate=0.1).fit(train_x, train_y)
 	models = [model_lasso, model_xgb]
 	weights = [0.7, 0.3]
 
@@ -148,9 +175,9 @@ def main():
 	# grid_search_ridge(train_x, train_y)
 	# grid_search_lasso(train_x, train_y)
 	# grid_search_mlp(train_x, train_y)
-	grid_search_xgb(train_x, train_y)
+	# grid_search_xgb(train_x, train_y)
 
-	# get_results(train_x, train_y, test_x, test_data)
+	get_results(train_x, train_y, test_x, test_data)
 
 
 
