@@ -5,26 +5,15 @@ from scipy.stats import norm, skew
 from sklearn.preprocessing import LabelEncoder
 
 from sklearn.linear_model import ElasticNet, Lasso, BayesianRidge, LassoLarsIC
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.kernel_ridge import KernelRidge
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import RobustScaler
-from sklearn.base import BaseEstimator, TransformerMixin, RegressorMixin, clone
 from sklearn.model_selection import KFold, cross_val_score, train_test_split
 from sklearn.metrics import mean_squared_error
-import xgboost as xgb
-import lightgbm as lgb
 from scipy.special import boxcox1p
+import lightgbm as lgb
 
 from xgboost import XGBRegressor
-
-# from sklearn.linear_model import Ridge, Lasso
-# from sklearn.neural_network import MLPRegressor
-# from xgboost import XGBRegressor
-
-# from sklearn.model_selection import cross_val_score
-# from sklearn.model_selection import GridSearchCV
-# from sklearn.model_selection import StratifiedKFold
 
 # Defining data paths.
 TRAIN_PATH = "data/train.csv"
