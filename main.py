@@ -49,9 +49,74 @@ def remove_nan_rows(df, bound=0.1):
 	return df
 
 
+
+# function to normalise a column of values to lie between 0 and 1
+def scale_minmax(col):
+	return (col-col.min())/(col.max()-col.min())
+
+# treating data with NaNs values
+def fill_columns_with_NaN(df):
+	# columns where NaN values have meaning, e.g. no pool, etc
+	cols_fillna = ['PoolQC','MiscFeature','Alley','Fence','MasVnrType','FireplaceQu',
+			   'GarageQual','GarageCond','GarageFinish','GarageType',
+			   'BsmtExposure','BsmtCond','BsmtQual','BsmtFinType1','BsmtFinType2']
+
+	# replacing NaN with None
+	for col in cols_fillna:
+		df[col].fillna('None', inplace=True)
+
+	# GarageYrBlt nans: no garage, fill with property YearBuilt (zero isn't better?)
+	df.loc[df.GarageYrBlt.isnull(), 'GarageYrBlt'] = df.loc[df.GarageYrBlt.isnull(), 'YearBuilt']
+
+	# No mansonry veneer - fill with zeros.
+	df.MasVnrArea.fillna(0, inplace=True)
+
+	# No basement - fill areas/counts with 0
+	df.BsmtFullBath.fillna(0, inplace=True)
+	df.BsmtHalfBath.fillna(0, inplace=True)
+	df.BsmtFinSF1.fillna(0, inplace=True)
+	df.BsmtFinSF2.fillna(0, inplace=True)
+	df.BsmtUnfSF.fillna(0, inplace=True)
+	df.TotalBsmtSF.fillna(0, inplace=True)
+
+	# No garage - fill areas/counts with 0
+	df.GarageArea.fillna(0, inplace=True)
+	df.GarageCars.fillna(0, inplace=True)
+
+	# convert categoricals to dummies, exclude SalePrice from model
+	df_frontage = pd.get_dummies(df)
+
+	# normalise columns to 0-1
+	for col in df_frontage.drop('LotFrontage',axis=1).columns:
+		df_frontage[col] = scale_minmax(df_frontage[col])
+
+	lf_train = df_frontage.dropna()
+	lf_train_y = lf_train.LotFrontage
+	lf_train_X = lf_train.drop('LotFrontage',axis=1)
+
+	lr = Ridge()
+	lr.fit(lf_train_X, lf_train_y)
+
+	# fill na values using model predictions
+	nan_frontage = df.LotFrontage.isnull()
+	X = df_frontage[nan_frontage].drop('LotFrontage',axis=1)
+	y = lr.predict(X)
+	# fill nan values of lot frontage
+	df.loc[nan_frontage,'LotFrontage'] = y
+
+	# Remaining Nan values
+	cols_with_na = df.isnull().sum()
+	cols_with_na = cols_with_na[cols_with_na > 0]
+
+	# fill remaining nans with mode in that column
+	for col in cols_with_na.index:
+		df[col].fillna(df[col].mode()[0], inplace=True)
+
+	return df
+
 def pre_processing_data(train_data, test_data):
 	# Removendo as linhas com muitos dados faltantes do conjunto de treino.
-	train_data = remove_nan_rows(train_data)
+	# train_data = remove_nan_rows(train_data)
 
 	# Concatenando dados de treino e teste para facilitar as operações
 	# de pré processamento.
@@ -60,6 +125,9 @@ def pre_processing_data(train_data, test_data):
 
 	# Removendo as colunas com muitos dados ausentes.
 	# all_data = remove_nan_columns(all_data)
+	# all_data = all_data.drop(columns=['Fence'])
+	# Preenchendo as colunas.
+	all_data = fill_columns_with_NaN(all_data)
 
 	# Aplicando Log nos preços de venda (valores em distribuição normal).
 	train_data["SalePrice"] = np.log1p(train_data["SalePrice"])
@@ -81,7 +149,7 @@ def pre_processing_data(train_data, test_data):
 	all_data = pd.get_dummies(all_data)
 
 	# Preenche os valores em branco com a média.
-	all_data = all_data.fillna(all_data.mean())
+	# all_data = all_data.fillna(all_data.mean())
 	# all_data = all_data.fillna(all_data.median())
 
 	# Dados para treinamento e teste após pré processamento.
