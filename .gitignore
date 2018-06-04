@@ -16,6 +16,7 @@
 .env.test.local
 .env.production.local
 *.csv
+*.txt
 __pycache__/
 
 npm-debug.log*
